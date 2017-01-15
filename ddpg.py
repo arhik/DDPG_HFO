@@ -31,9 +31,7 @@ class Locker(object):
     
     @visited.setter
     def visited(self, value):
-        if value=True:
-            # self.lock.acquire()
-            self._visited = value | self._visited
+        self._visited = value | self._visited
     
     # def release():
     #     self.lock.release()
