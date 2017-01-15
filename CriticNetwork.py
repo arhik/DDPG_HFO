@@ -54,7 +54,7 @@ class CriticNetwork(object):
         h4 = Dense(128, activation=K.elu)(h3)
         V_a = Dense(4, activation='softmax')(h4)
         V_p = Dense(6, activation='linear')(h4)
-        h5 = Merge([V_a, V_p], mode='concat')
+        h5 = merge([V_a, V_p], mode='concat')
         V = Dense(action_dim,activation=K.elu)(h5)
         model = Model(input=[S,A],output=V)
         adam = Adam(lr=self.LEARNING_RATE)

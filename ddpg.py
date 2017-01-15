@@ -19,9 +19,10 @@ import time
 
 OU = OU()       #Ornstein-Uhlenbeck Process
 
-
+import threading
 class Locker(object):
     def __init__(self):
+        # self.lock = threading.Lock()
         self._visited = False
     
     @property
@@ -30,14 +31,19 @@ class Locker(object):
     
     @visited.setter
     def visited(self, value):
-        self._visited = value | self._visited
+        if value=True:
+            # self.lock.acquire()
+            self._visited = value | self._visited
+    
+    # def release():
+    #     self.lock.release()
 
 def dist(x1,y1, x2, y2):
     return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
 
     
-def high_level_reward_func(state_1, state_0, visited, status):
+def high_level_reward_func(state_1, state_0, ball, status):
     agent_x0 = state_0[0]
     agent_y0 = state_0[1]
 
@@ -49,10 +55,10 @@ def high_level_reward_func(state_1, state_0, visited, status):
 
     ball_x1 = state_1[3]
     ball_y1 = state_1[4]
-    if not visited:
+    if not ball.visited:
         I_kick = state_1[5]
         if state_1[5] == 1:
-            visited = True
+            ball.visited = True
     else:
         I_kick = 0
     
@@ -73,11 +79,11 @@ def high_level_reward_func(state_1, state_0, visited, status):
     
 #     )
 
-def low_level_reward_function(state_1, state_0, visited, status):
-    if not visited:
+def low_level_reward_function(state_1, state_0, ball, status):
+    if not ball.visited:
         I_kick = max(0, (state_1[12] - state_0[12])/2)
         if state_1[12]==1:
-            visited = True
+            ball.visited = True
     else:
         I_kick = 0
     if status==hfo.GOAL:
@@ -90,10 +96,10 @@ def low_level_reward_function(state_1, state_0, visited, status):
         theta2 = (-1 if s[51] < 0 else 1)*math.acos(s[52])
         return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(abs(theta1 - theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2) # leaving it unnormalized
     
-    print("| TowardsError: {}\n| Kickable: {}\n| ball_goal_delta: {}\n| bool GOAL:{}".format(
-        (state_1[53] - state_0[53]), I_kick, 3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)), 5*I_goal
+    print("| TowardsError: {}\n| Kickable: {}\n| ball_goal_delta: {}{}\n| bool GOAL:{}".format(
+        (state_1[53] - state_0[53]), I_kick, 3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)), "| INCLUDED |" if ball.visited else "| ** IGNORED ** |" ,5*I_goal
     ))
-    return((state_1[53] - state_0[53]) + 2*I_kick + int(visited)*5*(ball_goal_dist(state_0) - ball_goal_dist(state_1)) + 7*I_goal)
+    return((state_1[53] - state_0[53]) + 2*I_kick + int(ball.visited)*5*(ball_goal_dist(state_0) - ball_goal_dist(state_1)) + 7*I_goal)
 
 
 def invert_grads(g, a):
@@ -264,7 +270,7 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             status = env.step()
 
             s_t1 = np.array(env.getState())
-            r_t =   low_level_reward_function(s_t1, s_t, isBall.visited, status)
+            r_t =   low_level_reward_function(s_t1, s_t, isBall, status)
 
             buff.add(s_t, a_t[0], r_t , s_t1, status)
 
