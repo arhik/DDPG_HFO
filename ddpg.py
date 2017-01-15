@@ -19,10 +19,25 @@ import time
 
 OU = OU()       #Ornstein-Uhlenbeck Process
 
+
+class Locker(object):
+    def __init__(self):
+        self._visited = False
+    
+    @property
+    def visited(self):
+        return self._visited
+    
+    @visited.setter
+    def visited(self, value):
+        self._visited = value | self._visited
+
 def dist(x1,y1, x2, y2):
     return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+
+
     
-def high_level_reward_func(state_1, state_0, already_close_to_ball, status):
+def high_level_reward_func(state_1, state_0, visited, status):
     agent_x0 = state_0[0]
     agent_y0 = state_0[1]
 
@@ -34,10 +49,10 @@ def high_level_reward_func(state_1, state_0, already_close_to_ball, status):
 
     ball_x1 = state_1[3]
     ball_y1 = state_1[4]
-    if not already_close_to_ball:
+    if not visited:
         I_kick = state_1[5]
         if state_1[5] == 1:
-            already_close_to_ball = True
+            visited = True
     else:
         I_kick = 0
     
@@ -58,11 +73,11 @@ def high_level_reward_func(state_1, state_0, already_close_to_ball, status):
     
 #     )
 
-def low_level_reward_function(state_1, state_0, already_close_to_ball, status):
-    if not already_close_to_ball:
+def low_level_reward_function(state_1, state_0, visited, status):
+    if not visited:
         I_kick = max(0, (state_1[12] - state_0[12])/2)
         if state_1[12]==1:
-            already_close_to_ball = True
+            visited = True
     else:
         I_kick = 0
     if status==hfo.GOAL:
@@ -73,12 +88,12 @@ def low_level_reward_function(state_1, state_0, already_close_to_ball, status):
     def ball_goal_dist(s): #distance not proximity
         theta1 = (-1 if s[13] < 0 else 1)*math.acos(s[14])
         theta2 = (-1 if s[51] < 0 else 1)*math.acos(s[52])
-        return math.sqrt((1-s[53])**2 + (1-s[15])**2 + 2*(1 - s[53])*(1-s[15])*math.cos(abs(theta1 - theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2) # leaving it unnormalized
+        return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(abs(theta1 - theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2) # leaving it unnormalized
     
     print("| TowardsError: {}\n| Kickable: {}\n| ball_goal_delta: {}\n| bool GOAL:{}".format(
         (state_1[53] - state_0[53]), I_kick, 3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)), 5*I_goal
     ))
-    return((state_1[53] - state_0[53]) + I_kick + 3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)) + 5*I_goal)
+    return((state_1[53] - state_0[53]) + 2*I_kick + int(visited)*5*(ball_goal_dist(state_0) - ball_goal_dist(state_1)) + 7*I_goal)
 
 
 def invert_grads(g, a):
@@ -89,7 +104,7 @@ def invert_grads(g, a):
     return tmp
     
 def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
-    BUFFER_SIZE = 100000
+    BUFFER_SIZE = 100000.
     BATCH_SIZE = 32
     GAMMA = 0.99
     TAU = 0.001     #Target Network HyperParameters
@@ -142,7 +157,7 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
         
     print("Soccer Experiment Start.")
     for episode in range(episode_count):
-        already_close_to_ball = False
+        isBall = Locker()
         print("Episode : " + str(episode) + " Replay Buffer " + str(buff.count()))
         
 
@@ -249,7 +264,7 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             status = env.step()
 
             s_t1 = np.array(env.getState())
-            r_t =   low_level_reward_function(s_t1, s_t, already_close_to_ball, status)
+            r_t =   low_level_reward_function(s_t1, s_t, isBall.visited, status)
 
             buff.add(s_t, a_t[0], r_t , s_t1, status)
 

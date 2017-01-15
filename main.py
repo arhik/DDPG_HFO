@@ -20,7 +20,7 @@ def low_level_reward_function(state_1, state_0, already_close_to_ball, status):
     def ball_goal_dist(s): #distance not proximity
         theta1 = (-1 if s[13] < 0 else 1)*math.acos(s[14])
         theta2 = (-1 if s[51] < 0 else 1)*math.acos(s[52])
-        return math.sqrt((1-s[53])**2 + (1-s[15])**2 + 2*(1 - s[53])*(1-s[15])*math.cos(abs(theta1 - theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2) # leaving it unnormalized
+        return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(abs(theta1 - theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2) # leaving it unnormalized
     
     print("TowardsError: {}\n Kickable: {}\n ball_goal_delta: {}\n bool GOAL:{}".format(
         (state_1[53] - state_0[53]), I_kick, 3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)), 5*I_goal
