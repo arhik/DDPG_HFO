@@ -1,0 +1,8 @@
+*pyc
+*.csv
+*.conf
+.vscode
+
+*.json
+*.h5
+
