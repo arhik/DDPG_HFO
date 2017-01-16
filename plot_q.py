@@ -8,7 +8,7 @@ class DDPG_Plot:
         self.ax = ax
         self.ax.set_ylim(-15, 15)
         self.ax.set_xlim(0,10)
-        self.line, = ax.plot([],[],'ko-', alpha=0.4)
+        self.line, = ax.plot([],[],'ko-', alpha=0.1)
         self.avg_line, = ax.plot([],[], 'r-', alpha=.8)
         self.avg_reward = 0
         self.x = []

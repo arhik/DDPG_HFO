@@ -1,7 +1,6 @@
 import hfo
 import numpy as np
 import random
-import argparse
 from keras.models import model_from_json, Model
 from keras.models import Sequential
 from keras.layers.core import Dense, Dropout, Activation, Flatten
@@ -13,17 +12,18 @@ from ReplayBuffer import ReplayBuffer
 from ActorNetwork import ActorNetwork
 from CriticNetwork import CriticNetwork
 from OU import OU
-import timeit
 from collections import namedtuple
 import time
 
 OU = OU()       #Ornstein-Uhlenbeck Process
 
 import threading
+
 class Locker(object):
     def __init__(self):
         # self.lock = threading.Lock()
         self._visited = False
+        self.count = 0
     
     @property
     def visited(self):
@@ -33,6 +33,12 @@ class Locker(object):
     def visited(self, value):
         self._visited = value | self._visited
     
+    def step(self):
+        self.count +=1
+        if self.count > 5:
+            self._visited = False
+            self.count = 0
+
     # def release():
     #     self.lock.release()
 
@@ -68,14 +74,6 @@ def high_level_reward_func(state_1, state_0, ball, status):
     return (- dist(agent_x1, agent_y1, ball_x1, ball_y1) + dist(agent_x0, agent_y0, ball_x0, ball_y0))  + \
                 1*I_kick + 3*(-dist(ball_x1, ball_y1, 53.00, 0.0) + dist(ball_x0, ball_y0, 53.0, 0.0)) + 5*I_goal
 
-# def info():
-#     s1 = env.getState()
-#     env.step()
-#     env.act(hfo.GO_TO_BALL)
-#     s2 = env.getState()
-#     print(low_level_reward_function(s2,s1)
-    
-#     )
 
 def low_level_reward_function(state_1, state_0, ball, status):
     if not ball.visited:
@@ -89,7 +87,7 @@ def low_level_reward_function(state_1, state_0, ball, status):
     else:
         I_goal = 0
 
-    def ball_goal_dist(s): #distance not proximity
+    def ball_goal_dist(s): # distance not proximity
         theta1 = (-1 if s[13] < 0 else 1)*math.acos(s[14])
         theta2 = (-1 if s[51] < 0 else 1)*math.acos(s[52])
         return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(abs(theta1 - theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2) # leaving it unnormalized
@@ -107,16 +105,16 @@ def invert_grads(g, a):
     tmp[tmp < 0] = tmp[tmp < 0]*(a[tmp < 0] + 1)/2
     return tmp
     
-def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
+def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
     BUFFER_SIZE = 100000.
     BATCH_SIZE = 32
     GAMMA = 0.99
-    TAU = 0.001     #Target Network HyperParameters
-    LRA = 0.0005    #Learning rate for Actor
-    LRC = 0.001     #Lerning rate for Critic
+    TAU = 0.001     # Target Network HyperParameters
+    LRA = 0.0005    # Learning rate for Actor
+    LRC = 0.001     # Lerning rate for Critic
 
-    action_dim = 10  #4 actions and their 6 continuous parameters
-    state_dim = 58 #of sensors input
+    action_dim = 10  # 4 actions and their 6 continuous parameters
+    state_dim = 58   # of sensors input
 
     np.random.seed(1337)
 
@@ -128,9 +126,7 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
     epsilon = 1
     indicator = 0
 
-    
-
-    #Tensorflow GPU optimization
+    # Tensorflow GPU optimization
     config = tf.ConfigProto()
     # config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
@@ -144,8 +140,6 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
     # Generate a HFO environment
     env = hfo.HFOEnvironment()
     env.connectToServer(hfo.LOW_LEVEL_FEATURE_SET, config_dir='./')
-
-
 
     #Now load the weight
     print("Now we load the weight")
@@ -161,13 +155,10 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
         
     print("Soccer Experiment Start.")
     for episode in range(episode_count):
-        isBall = Locker()
         print("Episode : " + str(episode) + " Replay Buffer " + str(buff.count()))
-        
-
+        isBall = Locker()  
         s_t = np.hstack(env.getState())
         status = env.step()
-        # print(s_t.shape)
         total_reward = 0.
         total_target_q_values = 0
         for j in range(max_steps):
@@ -178,13 +169,11 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             a_t = np.zeros([1,action_dim])
             noise_t = np.zeros([1,action_dim])
             
-            # a_t = actor.model.predict(s_t.reshape(1, s_t.shape[0]))
             a_t_original = actor.model.predict(s_t.reshape(1, s_t.shape[0]))
-            # print(a_t_original)
-            noise_t[0][0] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][0],  0.50 , 0.15, 0.20)
-            noise_t[0][1] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][1],  0.50 , 0.15, 0.20)
-            noise_t[0][2] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][2],  0.50 , 0.15, 0.20)
-            noise_t[0][3] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][3],  0.50 , 0.15, 0.20)
+            noise_t[0][0] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][0],  0.60 , 0.15, 0.20)
+            noise_t[0][1] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][1],  0.25 , 0.15, 0.20)
+            noise_t[0][2] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][2],  0.20, 0.15, 0.20)
+            noise_t[0][3] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][3],  0.40 , 0.15, 0.20)
             noise_t[0][4] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][4],  0.0 , 0.15, 0.20)
             noise_t[0][5] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][5],  0.0 , 0.15, 0.20)
             noise_t[0][6] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][6],  0.0 , 0.15, 0.20)
@@ -205,8 +194,6 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             a_t[0][3] = a_t_original[0][3] + noise_t[0][3]
             a_t[0][8] = a_t_original[0][8] + noise_t[0][8]
             a_t[0][9] = a_t_original[0][9] + noise_t[0][9]
-            
-
             
             dash_tuple = namedtuple('Dash', ['SOFTMAX', 'PWR','ANGLE'])
             turn_tuple = namedtuple('Turn', ['SOFTMAX', 'ANGLE'])
@@ -235,32 +222,12 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             action = actions[0]
             print(action)
             if type(action) == type(dash):
-                # a_t[0][0] = a_t_original[0][0] + noise_t[0][0]
-                # a_t[0][4] = a_t_original[0][4] + noise_t[0][4]
-                # a_t[0][5] = a_t_original[0][5] + noise_t[0][5]
-                # a_t[0][0] = action.SOFTMAX
-                # a_t[0][4] = action.PWR/100
-                # a_t[0][5] = action.ANGLE/180
                 env.act(hfo.DASH, dash.PWR, dash.ANGLE)
             elif type(action) == type(turn):
-                # a_t[0][1] = a_t_original[0][1] + noise_t[0][1]
-                # a_t[0][6] = a_t_original[0][6] + noise_t[0][6]
-                # a_t[0][1] = action.SOFTMAX
-                # a_t[0][6] = action.ANGLE/180
                 env.act(hfo.TURN, turn.ANGLE)
             elif type(action) == type(tackle):
-                # a_t[0][2] = a_t_original[0][2] + noise_t[0][2]
-                # a_t[0][7] = a_t_original[0][7] + noise_t[0][7]
-                # a_t[0][2] = action.SOFTMAX
-                # a_t[0][7] = action.ANGLE/180
                 env.act(hfo.TACKLE, tackle.ANGLE)
             elif type(action) == type(kick):
-                # a_t[0][3] = a_t_original[0][3] + noise_t[0][3]
-                # a_t[0][8] = a_t_original[0][8] + noise_t[0][8]
-                # a_t[0][9] = a_t_original[0][9] + noise_t[0][9]
-                # a_t[0][3] = action.SOFTMAX
-                # a_t[0][8] = action.PWR/100
-                # a_t[0][9] = action.ANGLE/180
                 env.act(hfo.KICK, kick.PWR,kick.ANGLE)
             else:
                 print('I am not acting')
@@ -271,9 +238,6 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             r_t =   low_level_reward_function(s_t1, s_t, isBall, status)
 
             buff.add(s_t, a_t[0], r_t , s_t1, status)
-
-            
-            
             
             #Do the batch update
             batch = buff.getBatch(BATCH_SIZE)
@@ -286,9 +250,6 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
 
             
             predicted_actions = actor.target_model.predict(new_states)
-
-            # print(predicted_action)
-
             target_q_values = critic.target_model.predict([new_states, predicted_actions])
             
             for k in range(len(batch)):
@@ -311,10 +272,6 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
 
             total_reward += r_t
             s_t = s_t1
-            
-            # print(status)
-            # print("Episode", episode, "Step", step, "Action", a_t, "Reward", r_t, "Loss", loss)
-            
             step += 1
             if status != hfo.IN_GAME:
                 break

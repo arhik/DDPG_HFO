@@ -8,8 +8,8 @@ class DDPG_Plot:
         self.ax = ax
         self.ax.set_ylim(-15, 15)
         self.ax.set_xlim(0,10)
-        self.line, = ax.plot([],[],'ko', alpha=0.4)
-        self.avg_line, = ax.plot([],[], 'r-', alpha=.8)
+        self.line, = ax.plot([],[],'ko', alpha=0.2)
+        self.avg_line, = ax.plot([],[], 'r-', alpha=.6)
         self.avg_reward = 0
         self.x = []
         self.y = []
@@ -34,7 +34,7 @@ class DDPG_Plot:
                     x,y = line.split(',')
                     self.x.append(int(x))
                     self.y.append(float(y))
-                    self.avg_reward = sum(self.y[-10:-1])/10 if len(self.y) > 10 else sum(self.y)/len(y)
+                    self.avg_reward = sum(self.y[-20:-1])/20 if len(self.y) > 20 else sum(self.y)/len(self.y)
                     self.avg_y.append(self.avg_reward)
                     self.line.set_data(self.x, self.y)
                     self.avg_line.set_data(self.x, self.avg_y)
