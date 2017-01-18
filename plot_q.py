@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
-
 class DDPG_Plot:
     def __init__(self, ax):
         self.ax = ax
@@ -39,7 +38,7 @@ class DDPG_Plot:
                     self.line.set_data(self.x, self.y)
                     self.avg_line.set_data(self.x, self.avg_y)
                     self.ax.set_xlim(0,(1.05)*len(self.x))
-                    self.ax.set_ylim(min(self.y)-.5,max(self.y)+.5)
+                    self.ax.set_ylim(min(self.avg_y)-.5,max(self.avg_y)+.5)
 
 fig, ax = plt.subplots()
 ddpg = DDPG_Plot(ax)

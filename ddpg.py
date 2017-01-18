@@ -90,12 +90,12 @@ def low_level_reward_function(state_1, state_0, ball, status):
     def ball_goal_dist(s): # distance not proximity
         theta1 = (-1 if s[13] < 0 else 1)*math.acos(s[14])
         theta2 = (-1 if s[51] < 0 else 1)*math.acos(s[52])
-        return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(abs(theta1 - theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2) # leaving it unnormalized
+        return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(max(theta1, theta2)- min(theta1,theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2)
     
     print("| TowardsError: {}\n| Kickable: {}\n| ball_goal_delta: {}{}\n| bool GOAL:{}".format(
         (state_1[53] - state_0[53]), I_kick, 3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)), "| INCLUDED |" if ball.visited else "| ** IGNORED ** |" ,5*I_goal
     ))
-    return((state_1[53] - state_0[53]) + 2*I_kick + int(ball.visited)*5*(ball_goal_dist(state_0) - ball_goal_dist(state_1)) + 7*I_goal)
+    return((state_1[53] - state_0[53]) + I_kick + int(ball.visited)*3*max(0,(ball_goal_dist(state_0) - ball_goal_dist(state_1))) + 5*I_goal)
 
 
 def invert_grads(g, a):
@@ -120,7 +120,7 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
 
     EXPLORE = 100000
     episode_count = 20000
-    max_steps = 100000
+    max_steps = 1000
     reward = 0
     step = 0
     epsilon = 1
@@ -139,7 +139,7 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
 
     # Generate a HFO environment
     env = hfo.HFOEnvironment()
-    env.connectToServer(hfo.LOW_LEVEL_FEATURE_SET, config_dir='./')
+    env.connectToServer(hfo.LOW_LEVEL_FEATURE_SET, config_dir='./conf', server_port = 1111)
 
     #Now load the weight
     print("Now we load the weight")

@@ -3,7 +3,6 @@
 # Title
 ## Actor Critic based Deep Deterministic Policy Gradient approach to Soccer World game under partially observed environment
 
-
 ### Introduction:
 
 Since the  advent of AI I always strived to work on algorithms which are more

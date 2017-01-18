@@ -44,7 +44,7 @@ class ActorNetwork(object):
         h2 = Dense(256, activation=K.elu)(h1)
         h3 = Dense(128, activation=K.elu)(h2)
         action_V = Dense(4, activation = 'softmax')(h3)
-        action_P = Dense(6, activation='linear', init=lambda shape, name: normal(shape, scale=1e-2, name=name))(h3)
+        action_P = Dense(6, activation='softsign', init=lambda shape, name: normal(shape, scale=1e-2, name=name))(h3)
         V = merge([action_V, action_P], mode='concat')
         model = Model(input=S,output=V)
         return model, model.trainable_weights, S

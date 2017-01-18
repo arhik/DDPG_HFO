@@ -36,7 +36,7 @@ class CriticNetwork(object):
         self.target_model.set_weights(critic_target_weights)
 
     def create_critic_network(self, state_size,action_dim):
-        S = Input(shape=[state_size], name='state_space')  
+        S = Input(shape=[state_size], name='state_space')
         A = Input(shape=[action_dim],name='action_space')
         w1 = Dense(1024, activation=K.elu)(S)
         a1 = Dense(512, activation=K.elu)(A)
@@ -45,9 +45,8 @@ class CriticNetwork(object):
         h3 = Dense(256, activation=K.elu)(h2)
         h4 = Dense(128, activation=K.elu)(h3)
         V_a = Dense(4, activation='softmax')(h4)
-        V_p = Dense(6, activation='linear')(h4)
-        h5 = merge([V_a, V_p], mode='concat')
-        V = Dense(action_dim,activation=K.elu)(h5)
+        V_p = Dense(6, activation='softsign')(h4)
+        V = merge([V_a, V_p], mode='concat')
         model = Model(input=[S,A],output=V)
         adam = Adam(lr=self.LEARNING_RATE)
         model.compile(loss='mse', optimizer=adam)
