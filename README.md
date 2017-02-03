@@ -16,6 +16,8 @@ Current results for given parameters:
 
 references:
 
-1. http://pemami4911.github.io/blog/2016/08/21/ddpg-rl.html
+1. https://www.cs.utexas.edu/~pstone/Papers/bib2html-links/ICLR16-hausknecht.pdf
 
-2. https://yanpanlau.github.io/2016/10/11/Torcs-Keras.html
+2. http://pemami4911.github.io/blog/2016/08/21/ddpg-rl.html
+
+3. https://yanpanlau.github.io/2016/10/11/Torcs-Keras.html
