@@ -90,18 +90,21 @@ def low_level_reward_function(state_1, state_0, ball, status):
     def ball_goal_dist(s): # distance not proximity
         theta1 = (-1 if s[13] < 0 else 1)*math.acos(s[14])
         theta2 = (-1 if s[51] < 0 else 1)*math.acos(s[52])
-        return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(max(theta1, theta2)- min(theta1,theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2)
+        ball_dist = 1 - s[53]
+        goal_dist = 1 - s[15]
+        return math.sqrt(ball_dist**2 + goal_dist**2 - 2*ball_dist*goal_dist*math.cos(max(theta1, theta2)- min(theta1,theta2)))
+        # return math.sqrt((1-s[53])**2 + (1-s[15])**2 - 2*(1 - s[53])*(1-s[15])*math.cos(max(theta1, theta2)- min(theta1,theta2)))/math.sqrt((1-s[53])**2 + (1-s[15])**2)
     
     print("| TowardsError: {}\n| Kickable: {}\n| ball_goal_delta: {}{}\n| bool GOAL:{}".format(
         (state_1[53] - state_0[53]), I_kick, 3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)), "| INCLUDED |" if ball.visited else "| ** IGNORED ** |" ,5*I_goal
     ))
-    return((state_1[53] - state_0[53]) + I_kick + int(ball.visited)*3*max(0,(ball_goal_dist(state_0) - ball_goal_dist(state_1))) + 5*I_goal)
+    return((state_1[53] - state_0[53]) + I_kick + int(ball.visited)*3*(ball_goal_dist(state_0) - ball_goal_dist(state_1)) + 5*I_goal)
 
 
 def invert_grads(g, a):
     tmp_a = np.array(a)
     tmp = np.array(g)
-    tmp[tmp >= 0] = tmp[tmp >= 0]*(1- a[tmp >= 0])/2
+    tmp[tmp >= 0] = tmp[tmp >= 0]*(1 - a[tmp >= 0])/2
     tmp[tmp < 0] = tmp[tmp < 0]*(a[tmp < 0] + 1)/2
     return tmp
     
@@ -110,7 +113,7 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
     BATCH_SIZE = 32
     GAMMA = 0.99
     TAU = 0.001     # Target Network HyperParameters
-    LRA = 0.0005    # Learning rate for Actor
+    LRA = 0.001    # Learning rate for Actor
     LRC = 0.001     # Lerning rate for Critic
 
     action_dim = 10  # 4 actions and their 6 continuous parameters
@@ -118,7 +121,7 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
 
     np.random.seed(1337)
 
-    EXPLORE = 100000
+    EXPLORE = 10000.
     episode_count = 20000
     max_steps = 1000
     reward = 0
@@ -139,7 +142,7 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
 
     # Generate a HFO environment
     env = hfo.HFOEnvironment()
-    env.connectToServer(hfo.LOW_LEVEL_FEATURE_SET, config_dir='./conf', server_port = 1111)
+    env.connectToServer(hfo.LOW_LEVEL_FEATURE_SET, config_dir='./conf', server_port = 1234)
 
     #Now load the weight
     print("Now we load the weight")
@@ -160,11 +163,11 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
         s_t = np.hstack(env.getState())
         status = env.step()
         total_reward = 0.
-        total_target_q_values = 0
+        loss = 0 
         for j in range(max_steps):
             
             # time.sleep(.1)
-            loss = 0 
+            
             epsilon -= 1.0 / EXPLORE
             a_t = np.zeros([1,action_dim])
             noise_t = np.zeros([1,action_dim])
@@ -206,20 +209,20 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
             kick = kick_tuple(a_t[0][3], 100*a_t[0][8], 180*a_t[0][9])
 
             print("Actions:\n--{}\n--{}\n--{}\n--{}".format(dash, turn, tackle, kick))
-            # if 0 <= episode <= 200:
-            #     r = .6
-            # elif 201 < episode <=500:
-            #     r = 0.7
-            # elif 501 <= episode < 1000:
-            #     r = 0.75
-            # elif 1001 <- episode < 2000:
-            #     r = .8
-            # else:
-            #     r = .9
+            if 0 <= episode <= 200:
+                r = .6
+            elif 201 < episode <=500:
+                r = 0.7
+            elif 501 <= episode < 1000:
+                r = 0.75
+            elif 1001 <- episode < 2000:
+                r = .8
+            else:
+                r = .9
             
             actions = sorted([dash, turn, tackle, kick], key=lambda x: x.SOFTMAX, reverse=True)
-            # action = actions[0 if random.random() < r else random.randint(0,3)]
-            action = actions[0]
+            action = actions[0 if random.random() < r else random.randint(0,3)]
+            # action = actions[0]
             print(action)
             if type(action) == type(dash):
                 env.act(hfo.DASH, dash.PWR, dash.ANGLE)
@@ -237,7 +240,7 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
             s_t1 = np.array(env.getState())
             r_t =   low_level_reward_function(s_t1, s_t, isBall, status)
 
-            buff.add(s_t, a_t[0], r_t , s_t1, status)
+            buff.add(s_t, a_t[0], r_t , s_t1, status!=hfo.IN_GAME)
             
             #Do the batch update
             batch = buff.getBatch(BATCH_SIZE)
@@ -246,11 +249,12 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
             rewards = np.asarray([e[2] for e in batch])
             new_states = np.asarray([e[3] for e in batch])
             dones = np.asarray([e[4] for e in batch])
-            y_t = np.asarray([e[1] for e in batch])
+            y_t = np.asarray([e[2] for e in batch])
 
             
             predicted_actions = actor.target_model.predict(new_states)
             target_q_values = critic.target_model.predict([new_states, predicted_actions])
+            # print(target_q_values)
             
             for k in range(len(batch)):
                 if dones[k]:
@@ -258,8 +262,7 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
                 else:
                     y_t[k] = rewards[k] + GAMMA*target_q_values[k]
             
-            for k in range(len(batch)):
-                total_target_q_values = total_target_q_values + target_q_values[k]
+            # print(y_t)
        
             if (train_indicator):
                 loss += critic.model.train_on_batch([states,actions], y_t)
@@ -282,7 +285,9 @@ def playGame(train_indicator=0):    # 1 means Train, 0 means simply Run
         with open('rewards.csv', 'a') as f:
             f.writelines("{},{}\n".format(episode, total_reward))
         with open('q_values.csv', 'a') as g:
-            g.write("{},{}\n".format(episode, sum(total_target_q_values)))
+            g.write("{},{}\n".format(episode, np.mean(target_q_values)))
+        with open('loss_values.csv', 'a') as g:
+            g.write("{},{}\n".format(episode, loss))
         if np.mod(episode, 3) == 0:
             if (train_indicator):
                 print("Now we save model")

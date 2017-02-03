@@ -15,7 +15,6 @@ class CriticNetwork(object):
         self.LEARNING_RATE = LEARNING_RATE
         self.action_size = action_size
         K.set_session(sess)
-
         #Now create the model
         self.model, self.action, self.state = self.create_critic_network(state_size, action_size)  
         self.target_model, self.target_action, self.target_state = self.create_critic_network(state_size, action_size)  
@@ -44,10 +43,11 @@ class CriticNetwork(object):
         h2 = merge([h1,a1],mode='sum')
         h3 = Dense(256, activation=K.elu)(h2)
         h4 = Dense(128, activation=K.elu)(h3)
-        V_a = Dense(4, activation='softmax')(h4)
-        V_p = Dense(6, activation='softsign')(h4)
-        V = merge([V_a, V_p], mode='concat')
-        model = Model(input=[S,A],output=V)
+        # V_a = Dense(4, activation='softmax')(h4)
+        # V_p = Dense(6, activation='softsign')(h4)
+        # V = merge([V_a, V_p], mode='concat')
+        O = Dense(1, activation = K.elu)(h4)
+        model = Model(input=[S,A],output=O)
         adam = Adam(lr=self.LEARNING_RATE)
         model.compile(loss='mse', optimizer=adam)
         model.summary()

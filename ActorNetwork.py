@@ -13,9 +13,7 @@ class ActorNetwork(object):
         self.BATCH_SIZE = BATCH_SIZE
         self.TAU = TAU
         self.LEARNING_RATE = LEARNING_RATE
-
         K.set_session(sess)
-
         self.model , self.weights, self.state = self.create_actor_network(state_size, action_size)   
         self.target_model, self.target_weights, self.target_state = self.create_actor_network(state_size, action_size) 
         self.action_gradient = tf.placeholder(tf.float32,[None, action_size])
@@ -44,7 +42,7 @@ class ActorNetwork(object):
         h2 = Dense(256, activation=K.elu)(h1)
         h3 = Dense(128, activation=K.elu)(h2)
         action_V = Dense(4, activation = 'softmax')(h3)
-        action_P = Dense(6, activation='softsign', init=lambda shape, name: normal(shape, scale=1e-2, name=name))(h3)
+        action_P = Dense(6, activation='linear', init=lambda shape, name: normal(shape, scale=1e-2, name=name))(h3)
         V = merge([action_V, action_P], mode='concat')
         model = Model(input=S,output=V)
         return model, model.trainable_weights, S
