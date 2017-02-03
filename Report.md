@@ -1,4 +1,3 @@
-# This report on capstone project
 
 # Title
 ## Actor Critic based Deep Deterministic Policy Gradient approach to Soccer World game under partially observed environment
